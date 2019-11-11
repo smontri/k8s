@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Lab 1: Application deployment - My Docs</title>
+        <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+        <link href="../css/font-awesome.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+        <script src="../js/jquery-1.10.2.min.js" defer></script>
+        <script src="../js/bootstrap-3.0.3.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script> 
+    </head>
+
+    <body>
+
+        <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+            <div class="container">
+
+                <!-- Collapsed navigation -->
+                <div class="navbar-header">
+                    <!-- Expander button -->
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="..">My Docs</a>
+                </div>
+
+                <!-- Expanded navigation -->
+                <div class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li >
+                                <a href="..">Welcome to MkDocs</a>
+                            </li>
+                            <li >
+                                <a href="../Lab_0/">Lab 0: Environment</a>
+                            </li>
+                            <li class="active">
+                                <a href="./">Lab 1: Application deployment</a>
+                            </li>
+                            <li >
+                                <a href="../Lab_2/">Lab 2: Deploy PHP Guestbook application with Redis</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li >
+                                <a rel="next" href="../Lab_0/">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li >
+                                <a rel="prev" href="../Lab_2/">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+                <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="main active"><a href="#lab-1-application-deployment">Lab 1: Application deployment</a></li>
+            <li><a href="#connect-to-the-k8s-cluster">Connect to the K8s cluster</a></li>
+            <li><a href="#create-a-deployment">Create a deployment</a></li>
+            <li><a href="#expose-application">Expose application</a></li>
+            <li><a href="#scale-application">Scale application</a></li>
+            <li><a href="#rollout-rollback-deployment">Rollout &amp; Rollback deployment</a></li>
+    </ul>
+</div></div>
+                <div class="col-md-9" role="main">
+
+<h1 id="lab-1-application-deployment">Lab 1: Application deployment</h1>
+<h2 id="connect-to-the-k8s-cluster">Connect to the K8s cluster</h2>
+<p>Use Lab 0 information and credentials to connect to </p>
+<h2 id="create-a-deployment">Create a deployment</h2>
+<p>We will deploy a NGINX application using a Kubernetes Deployment.
+Create the YAML file <code>nginx_deploy.yaml</code> in your home directory with below content:</p>
+<pre><code class="yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+</code></pre>
+
+<p>To deploy the application, use the following command:</p>
+<pre><code class="shell">kubectl apply -f nginx_deploy.yaml -n &lt;your-namespace&gt; --record # -- record allow history of deployment updates
+</code></pre>
+
+<p>Following objects are created:</p>
+<h3 id="deployment">Deployment:</h3>
+<pre><code class="shell">kubectl get deploy -n &lt;your-namespace&gt;
+</code></pre>
+
+<h3 id="replicaset">ReplicaSet:</h3>
+<pre><code class="shell">kubectl get rs -n &lt;your-namespace&gt;
+</code></pre>
+
+<h3 id="pods">Pods:</h3>
+<pre><code class="shell">kubectl get pods -n &lt;your-namespace&gt;
+</code></pre>
+
+<p><img alt="Result of deployment" src="images/lab1_result.png" /></p>
+<h2 id="expose-application">Expose application</h2>
+<p>To expose the application, we will create a service.
+For this example, we will use ClusterIP/NodePort option. This will allow to call the service from any Node using the NodePort that has been assigned to the service.</p>
+<p>Create the YAML file <code>nginx_service.yaml</code> in your home directory with below content:</p>
+<pre><code class="yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-nodeport
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+      #nodePort: 30080
+</code></pre>
+
+<p>To expose the application, use the following command:</p>
+<pre><code class="shell">kubectl apply -f nginx_service.yaml -n &lt;your-namespace&gt;
+</code></pre>
+
+<h2 id="scale-application">Scale application</h2>
+<p>We will now scale the application in order to have 5 replicas for the nginx deployment.</p>
+<pre><code class="shell">kubectl scale --replicas=5 deployment/nginx -n &lt;your-namespace&gt;
+</code></pre>
+
+<p>Have a look at the number of pods afterwards:</p>
+<p><img alt="Scale deployment" src="images/lab1_scaled.png" /></p>
+<p>Additionally, you can show labels applied on Pods:</p>
+<pre><code class="shell">kubectl get pods --show-labels -n &lt;your-namespace&gt;
+</code></pre>
+
+<p><img alt="Pods with labels" src="images/lab1_pods_labels.png" /></p>
+<h2 id="rollout-rollback-deployment">Rollout &amp; Rollback deployment</h2>
+<p>We will now update the deployment to change the Docker image used (from nginx:1.7.9 to nginx:1.9.1)</p>
+<pre><code class="shell">kubectl set image deployment/nginx nginx=nginx:1.9.1 -n &lt;your-namespace&gt; --record
+</code></pre>
+
+<p><img alt="Deploy describe" src="images/lab1_update.png" /></p>
+<p>Let's see the updated deployment in details</p>
+<pre><code class="shell">kubectl describe deploy/nginx -n demo
+</code></pre>
+
+<p><img alt="Updated deploy" src="images/lab1_rollout2.png" /></p>
+<p>We see that image has been updated!</p>
+<p>Run the following command to update the deployment one more time:</p>
+<pre><code class="shell">kubectl set image deployment/nginx nginx=nginx:1.91 -n &lt;your-namespace&gt; --record
+</code></pre>
+
+<p>Now, we check the history of rollouts:</p>
+<pre><code class="shell">kubectl rollout history deployment/nginx -n &lt;your-namespace&gt;
+</code></pre>
+
+<p><img alt="Rollout history" src="images/lab1_rollout_history.png" /></p>
+<p>Unfortunately we made a mistake with the image name... nginx:1.91 instead of nginx:1.9.1</p>
+<p><img alt="ImagePullBackOff" src="images/lab1_pods_imagepull.png" /></p>
+<p>We will then perform a rollback to revision 2:</p>
+<pre><code class="shell">kubectl rollout undo deployment.v1.apps/nginx -n &lt;your-namespace&gt; --to-revision=2
+</code></pre>
+
+<p><img alt="Deploy Rollback" src="images/lab1_deploy_rolledback.png" /></p>
+<p>THIS ENDS LAB #1!</p></div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js" defer></script>
+        <script src="../search/main.js" defer></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="Search Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form role="form">
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="Keyboard Shortcuts Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Keyboard Shortcuts</h4>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
